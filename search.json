@@ -60,7 +60,7 @@
     "href": "index.html",
     "title": "BioFAIR Pathfinder 2026",
     "section": "",
-    "text": "This is a Quarto website.\nTo learn more about Quarto websites visit https://quarto.org/docs/websites."
+    "text": "This is a Quarto website for the BioFAIR Pathfinder project Connecting Bioconductor, Galaxy, and nf-core.\nThe notebook Clustering 3K PBMCs with Bioconductor illustrates a single-cell analysis workflow combining several R packages from the BioConductor and CRAN repositories. It is intended to support discussions around potential updates to existing Galaxy tool wrappers and to help identify cases where new wrappers may be needed.\nTo learn more about Quarto websites visit https://quarto.org/docs/websites."
   },
   {
     "objectID": "about.html",
