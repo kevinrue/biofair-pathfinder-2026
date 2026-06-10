@@ -1,5 +1,5 @@
 ---
-title: "."
+title: "BioFAIR Pathfinder 2026"
 ---
 
 This is a Quarto website.
