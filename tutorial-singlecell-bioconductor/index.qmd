@@ -1,0 +1,561 @@
+---
+title: "Clustering 3K PBMCs with Bioconductor"
+author: "Kevin Rue-Albrecht"
+execute:
+  freeze: true  # never re-render during project render
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: right
+---
+
+*Generated: `r format(Sys.time(), "%Y-%m-%d %H:%M:%S")`*
+
+## Libraries
+
+```{r}
+#| message: false
+#| warning: false
+library(bluster)
+library(cowplot)
+library(DropletUtils)
+library(scater)
+library(scran)
+library(scuttle)
+```
+
+## Data
+
+### Data download
+
+To create a parallel tutorial to the existing tutorial [Clustering 3K PBMCs with Seurat](https://training.galaxyproject.org/training-material/topics/single-cell/tutorials/scrna-seurat-pbmc3k/tutorial.html), input data files were downloaded from these Zenodo links:
+
+```
+https://zenodo.org/record/3581213/files/genes.tsv
+https://zenodo.org/record/3581213/files/barcodes.tsv
+https://zenodo.org/record/3581213/files/matrix.mtx
+```
+
+```{r}
+if (!dir.exists("data")) {
+	dir.create("data")
+}
+if (!file.exists("data/genes.tsv")) {
+	download.file("https://zenodo.org/record/3581213/files/genes.tsv", "data/genes.tsv")
+}
+if (!file.exists("data/genes.tsv")) {
+	download.file("https://zenodo.org/record/3581213/files/barcodes.tsv", "data/barcodes.tsv")
+}
+if (!file.exists("data/genes.tsv")) {
+	download.file("https://zenodo.org/record/3581213/files/matrix.mtx", "data/matrix.mtx")
+}
+```
+
+#### Create a SingleCellExperiment Object
+
+```{r}
+sce <- DropletUtils::read10xCounts(
+	samples = "data",
+	row.names = "symbol"
+)
+sce
+```
+
+> A Galaxy tool wrapper exists, [DropletUtils Read10x](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Febi-gxa%2Fdropletutils_read_10x%2Fdropletutils_read_10x%2F1.0.4%2Bgalaxy0&version=latest), but:
+> 
+> - produces an `rdata` file. This file needs to be manually re-typed to `rdata.sce` or `loom` in the Galaxy interface depending on the requirements of downstream tool wrappers.
+> - does not offer the option to use gene symbols as rownames. Unless the tool wrapper can be update to offer this option, another tool wrapper is needed to set rownames to gene symbols.
+
+#### Inspect the `SingleCellExperiment` object.
+
+```{r}
+print(sce)
+```
+
+> New Galaxy Tool needed to run the code above and write the output to a `txt` file.
+
+## Preprocessing
+
+### Computation of QC metrics
+
+#### Identify mitochondrial genes.
+
+```{r}
+mt_gene_ids <- rownames(sce)[grep('^MT-', rowData(sce)[["Symbol"]])]
+mt_gene_ids
+```
+
+> New Galaxy Tool needed to run the code above.
+
+> Note: the [Single-cell quality control with scater](https://training.galaxyproject.org/training-material/topics/single-cell/tutorials/scrna-scater-qc/tutorial.html) tutorial provides a precomputed file of mitochondrial genes.
+
+#### Calculate the Proportion of Mitochondrial Reads
+
+```{r}
+gene_subsets <- list()
+gene_subsets[["MT"]] <- mt_gene_ids
+sce <- scuttle::addPerCellQCMetrics(
+	x = sce,
+	subsets = gene_subsets
+)
+sce
+```
+
+> A Galaxy Tool wrapper exists, [Scater: calculate QC metrics](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Fiuc%2Fscater_create_qcmetric_ready_sce%2Fscater_create_qcmetric_ready_sce%2F1.22.0&version=latest), but:
+> 
+> - requires the expression matrix in tabular format. This is awkward as the original matrix comes in `mtx` format, and re-exporting the matrix from the `SingleCellExperiment` object to tabular format would be awkward and unnecessary given that this function is designed to work on directly on the `SingleCellExperiment` object.
+
+### Filtering of low-quality cells
+
+#### Visualise QC Metrics.
+
+```{r}
+#| fig-width: 6
+#| fig-height: 3
+plot_list <- list()
+plot_list[["detected"]] <- scater::plotColData(
+	object = sce,
+	y = "detected"
+)
+plot_list[["sum"]] <- scater::plotColData(
+	object = sce,
+	y = "sum"
+)
+plot_list[["subsets_MT_percent"]] <- scater::plotColData(
+	object = sce,
+	y = "subsets_MT_percent"
+)
+cowplot::plot_grid(plotlist = plot_list, nrow = 1)
+```
+
+> TODO: check for existing wrapper
+
+> Note: In contrast to `Seurat`, `scater` can only plot one QC metric at a time. Here, we use `cowplot` to combine them into a single figure.
+
+```{r}
+#| fig-width: 6
+#| fig-height: 3
+plot_list <- list()
+plot_list[["detected"]] <- scater::plotColData(
+	object = sce,
+	y = "detected",
+	x = "sum"
+)
+plot_list[["subsets_MT_percent"]] <- scater::plotColData(
+	object = sce,
+	y = "subsets_MT_percent",
+	x = "sum"
+)
+cowplot::plot_grid(plotlist = plot_list, nrow = 1)
+```
+
+> TODO: check for existing wrapper (ideally the same as above)
+
+> Note (same as above): In contrast to `Seurat`, `scater` can only plot one QC metric at a time. Here, we use `cowplot` to combine them into a single figure.
+
+#### Filter Out Low Quality Cells
+
+```{r}
+keep_cells <- sce$detected >= 200 & sce$detected <= 2500 & sce$subsets_MT_percent <= 5
+sce <- sce[, keep_cells]
+sce
+```
+
+> TODO: check for existing wrapper
+
+#### Re-Visualise QC Metrics
+
+```{r}
+#| fig-width: 6
+#| fig-height: 3
+plot_list <- list()
+plot_list[["detected"]] <- scater::plotColData(
+	object = sce,
+	y = "detected"
+)
+plot_list[["sum"]] <- scater::plotColData(
+	object = sce,
+	y = "sum"
+)
+plot_list[["subsets_MT_percent"]] <- scater::plotColData(
+	object = sce,
+	y = "subsets_MT_percent"
+)
+cowplot::plot_grid(plotlist = plot_list, nrow = 1)
+```
+
+> TODO: check for existing wrapper
+
+```{r}
+#| fig-width: 6
+#| fig-height: 3
+plot_list <- list()
+plot_list[["detected"]] <- scater::plotColData(
+	object = sce,
+	y = "detected",
+	x = "sum"
+)
+plot_list[["subsets_MT_percent"]] <- scater::plotColData(
+	object = sce,
+	y = "subsets_MT_percent",
+	x = "sum"
+)
+cowplot::plot_grid(plotlist = plot_list, nrow = 1)
+```
+
+> TODO: check for existing wrapper (ideally the same as above)
+
+### Further Preprocessing
+
+#### Separate Preprocessing Steps
+
+```{r}
+sce <- scuttle::logNormCounts(x = sce)
+sce
+```
+
+> TODO: check for existing wrapper (ideally the same as above)
+
+```{r}
+allf <- scran::modelGeneVar(x = sce)
+hvgs <- scran::getTopHVGs(allf, n = 2000)
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+> Note: The wrapper should output both:
+> 
+> - the table of statistics for later plotting, see below (tsv)
+> - the identifiers of highly variable genes (txt)
+
+```{r}
+message("No direct equivalent to Seurat ScaleData")
+```
+
+> TODO: check when this might have an impact on the rest of the tutorial
+
+```{r}
+plot(allf$mean, allf$total)
+curve(metadata(allf)$trend(x), add=TRUE, col="dodgerblue")
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+> Note that there is no packaged function available for this. Both the help page and the OSCA book give base R code for quick inspection. A Galaxy Tool wrapper could easily produce a nicer ggplot2 graphics including labels for the top N genes as in the Seurat tutorial.
+
+## Dimensionality Reduction
+
+### Principal Component Analysis
+
+#### Perform the PCA
+
+```{r}
+sce <- scater::runPCA(
+	x = sce,
+	ncomponents = 50,
+	subset_row = hvgs
+)
+sce
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+### Visualise the PCA Results
+
+#### Visualise the PCA Results - Dimensional Loadings
+
+```{r}
+message("No direct equivalent to Seurat::VizDimLoadings")
+```
+
+> Note: no direct impact on the rest of the tutorial.
+
+#### Visualise the PCA Results - DimPlot
+
+```{r}
+scater::plotPCA(sce)
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+#### Visualise the PCA Results - Feature Plots
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+plot_list <- list()
+for (gene_id in c("CST3", "CD79A", "HLA-DQA1", "MALAT1", "NKG7", "PPBP")) {
+	plot_list[[gene_id]] <- scater::plotPCA(
+		object = sce,
+		ncomponents = c(1, 2),
+		colour_by = gene_id
+	)
+}
+cowplot::plot_grid(plotlist = plot_list, nrow = 2)
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+Same for PC2 and PC3.
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+plot_list <- list()
+for (gene_id in c("CST3", "CD79A", "HLA-DQA1", "MALAT1", "NKG7", "PPBP")) {
+	plot_list[[gene_id]] <- scater::plotPCA(
+		object = sce,
+		ncomponents = c(2, 3),
+		colour_by = gene_id
+	)
+}
+cowplot::plot_grid(plotlist = plot_list, nrow = 2)
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+> Note: this relies on the "uniquified gene symbol" rather than the actual gene symbol (available in `rowData(sce)[["Symbol"]]`). This ensures that every single feature in the dataset can be plotted whether or not it has a unique gene symbol or not.
+
+#### Visualise the PCA Results - Heatmaps
+
+```{r}
+message("No direct equivalent to Seurat::DimHeatmap")
+```
+
+> Note: no direct impact on the rest of the tutorial.
+
+### Determine the ‘dimensionality’ of the dataset
+
+#### Make an Elbow Plot
+
+```{r}
+percent.var <- attr(reducedDim(sce), "percentVar")
+plot(percent.var, log="y", xlab="PC", ylab="Variance explained (%)")
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+## Cluster the Cells
+
+```{r}
+colData(sce)[["cluster"]] <- scran::clusterCells(
+	x = sce,
+	use.dimred = "PCA",
+	BLUSPARAM = bluster::SNNGraphParam(
+		k = 10,
+		type="rank",
+		cluster.fun = "louvain",
+		cluster.args = list(
+			resolution = 0.7
+		)
+	)
+)
+sce
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+> Note: `BLUSPARAM` thrown in there to illustrate how this might be configured, but a lot customisation is possible.
+
+### Run non-linear dimensional reduction (UMAP/tSNE)
+
+#### Perform Dimensional Reduction with UMAP
+
+```{r}
+sce <- scater::runUMAP(
+	x = sce,
+	dimred = "PCA",
+	pca = 20
+)
+sce
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+### Visualise UMAP
+
+#### Visualise the UMAP
+
+```{r}
+scater::plotUMAP(
+	object = sce,
+	colour_by = "cluster",
+	text_by = "cluster"
+)
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+plot_list <- list()
+for (gene_id in c("CST3", "CD79A", "HLA-DQA1", "MALAT1", "NKG7", "PPBP")) {
+	plot_list[[gene_id]] <- scater::plotUMAP(
+		object = sce,
+		colour_by = gene_id
+	)
+}
+cowplot::plot_grid(plotlist = plot_list, nrow = 2)
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+### Other ways to visualise clusters
+
+#### Visualise Expression across Clusters with a Violin Plot
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+plotExpression(
+	object = sce,
+	features = c("CST3", "CD79A", "HLA-DQA1", "MALAT1", "NKG7", "PPBP"),
+	ncol = 3,
+	x = "cluster",
+	colour_by = "cluster"
+)
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+## Find Marker Genes
+
+### Find Positive Markers for Every Cluster Compared to the Rest
+
+#### Use `findMarkers` to Compare All Clusters
+
+```{r}
+find_markers_results <- findMarkers(
+	x = sce,
+	groups = colData(sce)[["cluster"]],
+	test.type = "wilcox",
+	pval.type = "any"
+)
+find_markers_results
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+> Note: This function produces a Bioconductor `SimpleList` of tables (one per cluster) which would need to be saved in an RDS file unlike the combined table produced by Seurat where a column specifies the cluster for which each gene is a marker of. Furthermore, in the present case, there is no easy way to combine that list of tables into a single table because they have different sets of column headers (each cluster isn't tested against itself).
+
+could be converted to a base R `list` to safely write to RDS without triggering packages when re-importing in subsequent steps.
+
+### Find Markers of Cluster 2
+
+#### Use `FindMarkers` on a Single Cluster
+
+```{r}
+find_markers_results[["2"]]
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+> Note: For this one, simply extract the second element of the list produced in the previous step.
+
+[... skipped over a few variations for marker detection ...]
+
+## Identify Cell Types
+
+#### Make Violin Plots of B Cell Markers
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+plotExpression(
+	object = sce,
+	features = c("CD79A", "MS4A1"),
+	ncol = 2,
+	x = "cluster",
+	colour_by = "cluster"
+)
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+#### Make Violin Plots of T Cell Markers
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+plotExpression(
+	object = sce,
+	features = c("IL7R", "CCR7", "S100A4", "CD8A"),
+	ncol = 4,
+	x = "cluster",
+	colour_by = "cluster"
+)
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+#### Colour the UMAP Plot by Canonical Marker Expression
+
+```{r}
+#| fig-width: 14
+#| fig-height: 14
+gene_ids <- c(
+	"IL7R", "CCR7", "CD14", "LYZ", "S100A4", "MS4A1", "CD8A", "FCGR3A", "MS4A7",
+	"GNLY", "NKG7", "FCER1A", "CST3", "PPBP"
+)
+plot_list <- list()
+for (gene_id in gene_ids) {
+	plot_list[[gene_id]] <- scater::plotUMAP(
+		object = sce,
+		colour_by = gene_id
+	)
+}
+cowplot::plot_grid(plotlist = plot_list, nrow = 4)
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+#### Use Violin Plots to Compare Expression of Canonical Markers by Cluster
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+gene_ids <- c(
+	"IL7R", "CCR7", "CD14", "LYZ", "S100A4", "MS4A1", "CD8A", "FCGR3A", "MS4A7",
+	"GNLY", "NKG7", "FCER1A", "CST3", "PPBP"
+)
+plotExpression(
+	object = sce,
+	features = gene_ids,
+	ncol = 4,
+	x = "cluster",
+	colour_by = "cluster"
+)
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+#### Rename Clusters with Cell Types
+
+```{r}
+new_cluster_labels <- c(
+	"Memory CD4+ T",
+	"B",
+	"CD14+ Mono",
+	"NK",
+	"CD8+ T",
+	"FCGR3A+ Mono",
+	"Naive CD4+ T",
+	"Platelet"
+)
+levels(colData(sce)[["cluster"]]) <- new_cluster_labels
+```
+
+> TODO: check for existing Galaxy tool wrapper.
+
+#### Revisualise the UMAP with Cell Type Annotations
+
+```{r}
+scater::plotUMAP(
+	object = sce,
+	colour_by = "cluster",
+	text_by = "cluster"
+)
+```
+
+> TODO: check for existing Galaxy tool wrapper.

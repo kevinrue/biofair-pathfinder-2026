@@ -1,2 +1,5 @@
 /.quarto/
-_site/
+/_site/
+/_freeze/
+/renv/
+.Rprofile
