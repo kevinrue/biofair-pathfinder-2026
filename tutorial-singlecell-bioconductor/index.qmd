@@ -604,6 +604,7 @@ scater::plotUMAP(
 
 > TODO: check for existing Galaxy tool wrapper.
 
+## Session information
 
 ```{r}
 sessionInfo()
