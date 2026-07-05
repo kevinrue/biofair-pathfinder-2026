@@ -96,7 +96,7 @@ if (!file.exists("outputs/sce.loom")) {
 
 For this task, the tool [DropletUtils Read10x](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Febi-gxa%2Fdropletutils_read_10x%2Fdropletutils_read_10x%2F1.0.4%2Bgalaxy0&version=latest) can be used.
 
-Notes:
+However:
 
 - This tool produces an `rdata` file.
   RData objects are deemed insecure as discussed in this [GitHub issue](https://github.com/galaxyproject/tools-iuc/issues/3921).
@@ -108,7 +108,9 @@ Notes:
 
 #### Inspect the `SingleCellExperiment` object.
 
-The `SingleCellLoomExperiment` written to file in the previous step can be re-imported and a summary view of it can be displayed as follows:
+Given that R sessions do not persist between steps of a Galaxy workflow, a Galaxy tool would need to execute the following code to re-import the `SingleCellLoomExperiment` from the file written in the previous step before displaying a summary view of it.
+
+In the context of a Galaxy workflow, the output would then be saved to a `.txt` file that the user could inspect after the job completes.
 
 ```{r}
 sce <- import('outputs/sce.loom', format = "loom", type = "SingleCellLoomExperiment")
