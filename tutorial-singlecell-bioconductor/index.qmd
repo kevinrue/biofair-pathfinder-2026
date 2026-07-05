@@ -2,7 +2,7 @@
 title: "Clustering 3K PBMCs with Bioconductor"
 author: "Kevin Rue-Albrecht"
 execute:
-  freeze: true  # never re-render during project render
+  freeze: false  # never re-render during project render
 format:
   html:
     embed-resources: true
@@ -15,11 +15,18 @@ format:
 ## Libraries
 
 ```{r}
+if (interactive()) {
+	.libPaths("../renv/library/windows/R-4.5/")
+}
+```
+
+```{r}
 #| message: false
 #| warning: false
 library(bluster)
 library(cowplot)
 library(DropletUtils)
+library(LoomExperiment)
 library(scater)
 library(scran)
 library(scuttle)
@@ -44,22 +51,42 @@ if (!dir.exists("data")) {
 if (!file.exists("data/genes.tsv")) {
 	download.file("https://zenodo.org/record/3581213/files/genes.tsv", "data/genes.tsv")
 }
-if (!file.exists("data/genes.tsv")) {
+if (!file.exists("data/barcodes.tsv")) {
 	download.file("https://zenodo.org/record/3581213/files/barcodes.tsv", "data/barcodes.tsv")
 }
-if (!file.exists("data/genes.tsv")) {
+if (!file.exists("data/matrix.mtx")) {
 	download.file("https://zenodo.org/record/3581213/files/matrix.mtx", "data/matrix.mtx")
 }
 ```
 
 #### Create a SingleCellExperiment Object
 
+The common data structure adopted by Bioconductor packages to store the matrix as well as gene and cell annotations is called `SingleCellExperiment`.
+
+We can import the matrix and annotations of genes and cells into an `SingleCellExperiment` object using the function `read10xCounts()` of the package [DropletUtils](https://bioconductor.org/packages/DropletUtils/).
+
+We set the `samples=` argument to the directory that contains the three 10x files.
+Changing `row.names=` from the default `"id"` to `"symbol"` ensures that human-readable gene symbols are used instead of the database-friendlier Ensembl gene identifiers.
+Either way, both Ensembl gene identifiers and gene symbols will be stored in the `rowData()` component of the `SingleCellExperiment` and available at all times.
+
+In the context of a Galaxy workflow, we want to save the R object to a file that can be re-used by downstream tasks.
+R objects are traditionally saved to `.RData` or `.rds` files.
+However those file formats are specific to R and [deemed insecure](https://github.com/galaxyproject/tools-iuc/issues/3921).
+
+To be saved to the safer `loom` file format, `SingleCellExperiment` objects must be converted to the `SingleCellLoomExperiment` class before they can be saved to disk using the `export()` function from the `BiocIO` package.
+
+Altogether, the first tool in our Galaxy workflow should execute the following code:
+
 ```{r}
 sce <- DropletUtils::read10xCounts(
-	samples = "data",
+	samples = "data/",
 	row.names = "symbol"
 )
-sce
+dir.create("outputs")
+scle <- as(sce, "SingleCellLoomExperiment")
+if (!file.exists("outputs/sce.loom")) {
+	export(object = scle, con = "outputs/sce.loom", format = "loom")
+}
 ```
 
 > A Galaxy tool wrapper exists, [DropletUtils Read10x](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Febi-gxa%2Fdropletutils_read_10x%2Fdropletutils_read_10x%2F1.0.4%2Bgalaxy0&version=latest), but:
@@ -67,7 +94,18 @@ sce
 > - produces an `rdata` file. This file needs to be manually re-typed to `rdata.sce` or `loom` in the Galaxy interface depending on the requirements of downstream tool wrappers.
 > - does not offer the option to use gene symbols as rownames. Unless the tool wrapper can be update to offer this option, another tool wrapper is needed to set rownames to gene symbols.
 
+#### Export to Loom file format
+
+R objects are traditionally saved to RData or RDS files.
+However those file formats are specific to R and deemed unsafe.
+
+To be saved to the safer `loom` file format, `SingleCellExperiment` objects must be converted to the `SingleCellLoomExperiment` class before they can be saved to disk as follows:
+
+
+
 #### Inspect the `SingleCellExperiment` object.
+
+A summary view of the `SingleCellLoomExperiment` can be displayed as follows:
 
 ```{r}
 print(sce)
@@ -559,3 +597,8 @@ scater::plotUMAP(
 ```
 
 > TODO: check for existing Galaxy tool wrapper.
+
+
+```{r}
+sessionInfo()
+```
