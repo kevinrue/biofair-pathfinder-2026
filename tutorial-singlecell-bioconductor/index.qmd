@@ -12,9 +12,14 @@ format:
 
 *Generated: `r format(Sys.time(), "%Y-%m-%d %H:%M:%S")`*
 
+## Context
+
+This tutorial demonstrates a single-cell analysis workflow using Bioconductor packages, while discussing its implementation as a [Galaxy Training Network (GTN)](https://training.galaxyproject.org/) tutorial.
+
 ## Libraries
 
 ```{r}
+#| include: false
 if (interactive()) {
 	.libPaths("../renv/library/windows/R-4.5/")
 }
@@ -89,29 +94,28 @@ if (!file.exists("outputs/sce.loom")) {
 }
 ```
 
-> A Galaxy tool wrapper exists, [DropletUtils Read10x](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Febi-gxa%2Fdropletutils_read_10x%2Fdropletutils_read_10x%2F1.0.4%2Bgalaxy0&version=latest), but:
-> 
-> - produces an `rdata` file. This file needs to be manually re-typed to `rdata.sce` or `loom` in the Galaxy interface depending on the requirements of downstream tool wrappers.
-> - does not offer the option to use gene symbols as rownames. Unless the tool wrapper can be update to offer this option, another tool wrapper is needed to set rownames to gene symbols.
+For this task, the tool [DropletUtils Read10x](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Febi-gxa%2Fdropletutils_read_10x%2Fdropletutils_read_10x%2F1.0.4%2Bgalaxy0&version=latest) can be used.
 
-#### Export to Loom file format
+Notes:
 
-R objects are traditionally saved to RData or RDS files.
-However those file formats are specific to R and deemed unsafe.
-
-To be saved to the safer `loom` file format, `SingleCellExperiment` objects must be converted to the `SingleCellLoomExperiment` class before they can be saved to disk as follows:
-
-
+- This tool produces an `rdata` file.
+  RData objects are deemed insecure as discussed in this [GitHub issue](https://github.com/galaxyproject/tools-iuc/issues/3921).
+  The tool should be updated to produce a `loom` file containing a `LoomExperiment` object.
+- This tool does not offer the option to use gene symbols as `rownames`.
+  The default Ensembl gene identifiers are not immediately interpretable and complicate the interpretation of results later in the workflow (e.g., list of highly variable genes, cluster marker genes).
+  The tool should be updated to offer the possibility of using gene symbols as `rownames` for the `SingleCellExperiment`.
+  It is worth pointing out that both Ensembl gene identifiers and gene symbols are stored in the `rowData` component of the `SingleCellExperiment` object, meaning they remain available throughout the analysis
 
 #### Inspect the `SingleCellExperiment` object.
 
-A summary view of the `SingleCellLoomExperiment` can be displayed as follows:
+The `SingleCellLoomExperiment` written to file in the previous step can be re-imported and a summary view of it can be displayed as follows:
 
 ```{r}
+sce <- import('outputs/sce.loom', format = "loom", type = "SingleCellLoomExperiment")
 print(sce)
 ```
 
-> New Galaxy Tool needed to run the code above and write the output to a `txt` file.
+For this task, a tool similar to the [Seurat Data Management](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Fiuc%2Fseurat_data%2Fseurat_data%2F5.4.0%2Bgalaxy2&version=latest) tool method "Inspect Seurat Object" is needed.
 
 ## Preprocessing
 
