@@ -89,7 +89,9 @@ sce <- DropletUtils::read10xCounts(
 	samples = "data/",
 	row.names = "symbol"
 )
-dir.create("outputs")
+if (!dir.exists("outputs")) {
+	dir.create("outputs")
+}
 scle <- as(sce, "SingleCellLoomExperiment")
 if (!file.exists("outputs/sce.loom")) {
 	export(object = scle, con = "outputs/sce.loom", format = "loom")
