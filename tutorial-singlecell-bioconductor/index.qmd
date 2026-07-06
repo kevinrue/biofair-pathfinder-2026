@@ -83,6 +83,8 @@ To be saved to the safer `loom` file format, `SingleCellExperiment` objects must
 Altogether, the first tool in our Galaxy workflow should execute the following code:
 
 ```{r}
+library(DropletUtils)
+library(LoomExperiment)
 sce <- DropletUtils::read10xCounts(
 	samples = "data/",
 	row.names = "symbol"
@@ -92,6 +94,7 @@ scle <- as(sce, "SingleCellLoomExperiment")
 if (!file.exists("outputs/sce.loom")) {
 	export(object = scle, con = "outputs/sce.loom", format = "loom")
 }
+rm(list = ls())
 ```
 
 For this task, the tool [DropletUtils Read10x](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Febi-gxa%2Fdropletutils_read_10x%2Fdropletutils_read_10x%2F1.0.4%2Bgalaxy0&version=latest) can be used.
@@ -113,8 +116,10 @@ Given that R sessions do not persist between steps of a Galaxy workflow, a Galax
 In the context of a Galaxy workflow, the output would then be saved to a `.txt` file that the user could inspect after the job completes.
 
 ```{r}
+library(LoomExperiment)
 sce <- import('outputs/sce.loom', format = "loom", type = "SingleCellLoomExperiment")
 print(sce)
+rm(list = ls())
 ```
 
 For this task, a tool similar to the [Seurat Data Management](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Fiuc%2Fseurat_data%2Fseurat_data%2F5.4.0%2Bgalaxy2&version=latest) tool method "Inspect Seurat Object" is needed.
@@ -125,25 +130,38 @@ For this task, a tool similar to the [Seurat Data Management](https://usegalaxy.
 
 #### Identify mitochondrial genes.
 
+In preparation for the calculation of quality control metrics, we need to identify mitochondrial genes in our dataset.
+
+Conveniently, human genes that are encoded in the mitochondrial DNA (rather than in the cell nucleus) have names beginning with `MT-`.
+
+The following code identifies all the rownames that match this pattern in our dataset and writes them to a `.txt` file.
+
 ```{r}
-mt_gene_ids <- rownames(sce)[grep('^MT-', rowData(sce)[["Symbol"]])]
-mt_gene_ids
+library(LoomExperiment)
+sce <- import('outputs/sce.loom', format = "loom", type = "SingleCellLoomExperiment")
+mt_gene_ids <- rownames(sce)[grep('^MT-', rownames(sce))]
+cat(mt_gene_ids, file = "outputs/mt_gene_ids.txt", sep = "\n")
+cat(mt_gene_ids, sep = "\n")
+rm(list = ls())
 ```
-
-> New Galaxy Tool needed to run the code above.
-
-> Note: the [Single-cell quality control with scater](https://training.galaxyproject.org/training-material/topics/single-cell/tutorials/scrna-scater-qc/tutorial.html) tutorial provides a precomputed file of mitochondrial genes.
 
 #### Calculate the Proportion of Mitochondrial Reads
 
+Equipped with a `SingleCellLoomExperiment` object and a file that contains the list of rownames that correspond to the mitochondrial genes, we can use the `addPerCellQCMetrics()` function from the `scuttle` package to compute some generic quality control metrics alongside metrics focusing on mitochondrial genes.
+
+In particular, the percentage of UMI assigned to mitochondrial genes is frequently used as a measure of cell integrity allowing us to remove droplets that contain damaged or otherwise suspicious cells.
+
 ```{r}
+library(LoomExperiment)
+library(scuttle)
+sce <- import('outputs/sce.loom', format = "loom", type = "SingleCellLoomExperiment")
+mt_gene_ids <- scan("outputs/mt_gene_ids.txt", what = "character", quiet = TRUE)
 gene_subsets <- list()
 gene_subsets[["MT"]] <- mt_gene_ids
 sce <- scuttle::addPerCellQCMetrics(
 	x = sce,
 	subsets = gene_subsets
 )
-sce
 ```
 
 > A Galaxy Tool wrapper exists, [Scater: calculate QC metrics](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Fiuc%2Fscater_create_qcmetric_ready_sce%2Fscater_create_qcmetric_ready_sce%2F1.22.0&version=latest), but:
