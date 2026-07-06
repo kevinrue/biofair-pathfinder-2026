@@ -90,7 +90,7 @@ sce <- DropletUtils::read10xCounts(
 	row.names = "symbol"
 )
 if (!dir.exists("outputs")) {
-	dir.create("outputs")
+dir.create("outputs")
 }
 scle <- as(sce, "SingleCellLoomExperiment")
 if (!file.exists("outputs/sce.loom")) {
@@ -166,9 +166,20 @@ sce <- scuttle::addPerCellQCMetrics(
 )
 ```
 
+The newly computed per-cell quality control metrics are stored in the `colData` component of the object.
+This a tabular `DataFrame` structure whose columns can be listed as follows:
+
+```{r}
+names(colData(sce))
+```
+
 > A Galaxy Tool wrapper exists, [Scater: calculate QC metrics](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Fiuc%2Fscater_create_qcmetric_ready_sce%2Fscater_create_qcmetric_ready_sce%2F1.22.0&version=latest), but:
 > 
 > - requires the expression matrix in tabular format. This is awkward as the original matrix comes in `mtx` format, and re-exporting the matrix from the `SingleCellExperiment` object to tabular format would be awkward and unnecessary given that this function is designed to work on directly on the `SingleCellExperiment` object.
+
+Notes:
+
+-  [Single-cell quality control with scater](https://training.galaxyproject.org/training-material/topics/single-cell/tutorials/scrna-scater-qc/tutorial.html) tutorial provides a precomputed file of mitochondrial genes.
 
 ### Filtering of low-quality cells
 
