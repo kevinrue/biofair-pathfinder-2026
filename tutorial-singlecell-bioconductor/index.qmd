@@ -19,13 +19,6 @@ This tutorial demonstrates a single-cell analysis workflow using Bioconductor pa
 ## Libraries
 
 ```{r}
-#| include: false
-if (interactive()) {
-	.libPaths("../renv/library/windows/R-4.5/")
-}
-```
-
-```{r}
 #| message: false
 #| warning: false
 library(bluster)
