@@ -16,6 +16,13 @@ format:
 
 This tutorial demonstrates a single-cell analysis workflow using Bioconductor packages, while discussing its implementation as a [Galaxy Training Network (GTN)](https://training.galaxyproject.org/) tutorial.
 
+```{r}
+if (interactive() && identical(Sys.info()[["sysname"]], "Windows")) {
+	.libPaths("../renv/library/windows/R-4.5/x86_64-w64-mingw32/")
+}
+.libPaths()
+```
+
 ## Libraries
 
 ```{r}
@@ -166,9 +173,10 @@ This a tabular `DataFrame` structure whose columns can be listed as follows:
 names(colData(sce))
 ```
 
-> A Galaxy Tool wrapper exists, [Scater: calculate QC metrics](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Fiuc%2Fscater_create_qcmetric_ready_sce%2Fscater_create_qcmetric_ready_sce%2F1.22.0&version=latest), but:
-> 
-> - requires the expression matrix in tabular format. This is awkward as the original matrix comes in `mtx` format, and re-exporting the matrix from the `SingleCellExperiment` object to tabular format would be awkward and unnecessary given that this function is designed to work on directly on the `SingleCellExperiment` object.
+For this task, the tool [Scater: calculate QC metrics](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Fiuc%2Fscater_create_qcmetric_ready_sce%2Fscater_create_qcmetric_ready_sce%2F1.22.0&version=latest) exists, but:
+
+- It requires the expression matrix in tabular format.
+  The tool should be updated to take a `loom` file containing a `SingleCellLoomExperiment` object.
 
 Notes:
 
