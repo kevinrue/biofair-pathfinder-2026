@@ -16,12 +16,6 @@ format:
 
 This tutorial demonstrates a single-cell analysis workflow using Bioconductor packages, while discussing its implementation as a [Galaxy Training Network (GTN)](https://training.galaxyproject.org/) tutorial.
 
-```{r}
-if (interactive() && identical(Sys.info()[["sysname"]], "Windows")) {
-	.libPaths("../renv/library/windows/R-4.5/x86_64-w64-mingw32/")
-}
-```
-
 ## Libraries
 
 ```{r}
