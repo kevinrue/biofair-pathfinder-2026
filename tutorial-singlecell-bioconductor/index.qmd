@@ -20,7 +20,6 @@ This tutorial demonstrates a single-cell analysis workflow using Bioconductor pa
 if (interactive() && identical(Sys.info()[["sysname"]], "Windows")) {
 	.libPaths("../renv/library/windows/R-4.5/x86_64-w64-mingw32/")
 }
-.libPaths()
 ```
 
 ## Libraries
