@@ -194,7 +194,7 @@ Having computed the quality control metrics and stored them in the `colData` com
 
 Which metrics are available can be determined by inspecting the `colData()` component of the object as shown above.
 
-Given that `plotColData()` can only plot one QC metric at a time, we use the `cowplot` package to combine them into a single figure.
+Given that `plotColData()` can only plot one QC metric at a time on the y-axis, we use the `cowplot` package to combine them into a single figure.
 
 ```{r}
 #| fig-width: 6
@@ -219,10 +219,15 @@ cowplot::plot_grid(plotlist = plot_list, nrow = 1)
 rm(list = ls())
 ```
 
+The `plotColData()` function can also plot one QC metric on the y-axis against another QC metric on the x-axis.
+This can be additional insights into the relationship between QC metrics and help determine appropriate thresholds for filtering out low-quality cells.
 
 ```{r}
 #| fig-width: 6
 #| fig-height: 3
+library(LoomExperiment)
+library(scater)
+sce <- import('outputs/sce_after_qc.loom', format = "loom", type = "SingleCellLoomExperiment")
 plot_list <- list()
 plot_list[["detected"]] <- scater::plotColData(
 	object = sce,
@@ -235,6 +240,7 @@ plot_list[["subsets_MT_percent"]] <- scater::plotColData(
 	x = "sum"
 )
 cowplot::plot_grid(plotlist = plot_list, nrow = 1)
+rm(list = ls())
 ```
 
 > TODO: check for existing wrapper (ideally the same as above)
@@ -244,6 +250,8 @@ cowplot::plot_grid(plotlist = plot_list, nrow = 1)
 #### Filter Out Low Quality Cells
 
 ```{r}
+library(LoomExperiment)
+sce <- import('outputs/sce_after_qc.loom', format = "loom", type = "SingleCellLoomExperiment")
 keep_cells <- sce$detected >= 200 & sce$detected <= 2500 & sce$subsets_MT_percent <= 5
 sce <- sce[, keep_cells]
 sce
