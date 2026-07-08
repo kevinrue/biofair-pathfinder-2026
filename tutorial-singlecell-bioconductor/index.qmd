@@ -157,13 +157,10 @@ sce <- scuttle::addPerCellQCMetrics(
 	x = sce,
 	subsets = gene_subsets
 )
-```
-
-The newly computed per-cell quality control metrics are stored in the `colData` component of the object.
-This a tabular `DataFrame` structure whose columns can be listed as follows:
-
-```{r}
-names(colData(sce))
+if (!file.exists("outputs/sce_after_qc.loom")) {
+	export(object = sce, con = "outputs/sce_after_qc.loom", format = "loom")
+}
+rm(list = ls())
 ```
 
 For this task, the tool [Scater: calculate QC metrics](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Fiuc%2Fscater_create_qcmetric_ready_sce%2Fscater_create_qcmetric_ready_sce%2F1.22.0&version=latest) exists, but:
@@ -175,13 +172,36 @@ Notes:
 
 -  [Single-cell quality control with scater](https://training.galaxyproject.org/training-material/topics/single-cell/tutorials/scrna-scater-qc/tutorial.html) tutorial provides a precomputed file of mitochondrial genes.
 
+#### Inspect the QC metrics
+
+The newly computed per-cell quality control metrics are stored in the `colData` component of the object.
+This a tabular `DataFrame` structure which can be inspected by re-importing the `SingleCellLoomExperiment` object and printing the `colData()` component.
+
+In the context of a Galaxy workflow, the output would then be saved to a `.txt` file that the user could inspect after the job completes.
+
+```{r}
+library(LoomExperiment)
+sce <- import('outputs/sce_after_qc.loom', format = "loom", type = "SingleCellLoomExperiment")
+print(colData(sce))
+rm(list = ls())
+```
+
 ### Filtering of low-quality cells
 
 #### Visualise QC Metrics.
 
+Having computed the quality control metrics and stored them in the `colData` component of the `SingleCellLoomExperiment` object, we can reload that object and use the `plotColData()` function of the [scater](https://bioconductor.org/packages/scater) package to visualise the quality control metrics to determine appropriate thresholds for filtering out low-quality cells.
+
+Which metrics are available can be determined by inspecting the `colData()` component of the object as shown above.
+
+Given that `plotColData()` can only plot one QC metric at a time, we use the `cowplot` package to combine them into a single figure.
+
 ```{r}
 #| fig-width: 6
 #| fig-height: 3
+library(LoomExperiment)
+library(scater)
+sce <- import('outputs/sce_after_qc.loom', format = "loom", type = "SingleCellLoomExperiment")
 plot_list <- list()
 plot_list[["detected"]] <- scater::plotColData(
 	object = sce,
@@ -196,11 +216,9 @@ plot_list[["subsets_MT_percent"]] <- scater::plotColData(
 	y = "subsets_MT_percent"
 )
 cowplot::plot_grid(plotlist = plot_list, nrow = 1)
+rm(list = ls())
 ```
 
-> TODO: check for existing wrapper
-
-> Note: In contrast to `Seurat`, `scater` can only plot one QC metric at a time. Here, we use `cowplot` to combine them into a single figure.
 
 ```{r}
 #| fig-width: 6
