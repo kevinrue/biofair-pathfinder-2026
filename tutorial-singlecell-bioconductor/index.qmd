@@ -261,18 +261,26 @@ library(LoomExperiment)
 sce <- import('outputs/sce_after_qc.loom', format = "loom", type = "SingleCellLoomExperiment")
 keep_cells <- sce$detected >= 200 & sce$detected <= 2500 & sce$subsets_MT_percent <= 5
 sce <- sce[, keep_cells]
-sce
+if (!file.exists("outputs/sce_after_qc_filter.loom")) {
+	export(object = sce, con = "outputs/sce_after_qc_filter.loom", format = "loom")
+}
+rm(sce)
 ```
 
 Notes:
 
 - Not every user will want to apply the same types of filters. Typically there are three metrics (total UMI, number of genes detected, mitochondrial content). For each metrics, users might choose to apply a lower cutoff and a higher cutoff. The Galaxy tool should offer the flexibility to filter on any of those six metrics. Take inspiration from the equivalent Seurat tool that already exists.
 
-#### Re-Visualise QC Metrics
+#### Visualise QC Metrics After Filtering
+
+We can then produce the same plots as earlier to visualise the new distribution of quality control metrics in our data.
 
 ```{r}
 #| fig-width: 6
 #| fig-height: 3
+library(LoomExperiment)
+library(scater)
+sce <- import('outputs/sce_after_qc_filter.loom', format = "loom", type = "SingleCellLoomExperiment")
 plot_list <- list()
 plot_list[["detected"]] <- scater::plotColData(
 	object = sce,
@@ -287,13 +295,15 @@ plot_list[["subsets_MT_percent"]] <- scater::plotColData(
 	y = "subsets_MT_percent"
 )
 cowplot::plot_grid(plotlist = plot_list, nrow = 1)
+rm(list = ls())
 ```
-
-> TODO: check for existing wrapper
 
 ```{r}
 #| fig-width: 6
 #| fig-height: 3
+library(LoomExperiment)
+library(scater)
+sce <- import('outputs/sce_after_qc_filter.loom', format = "loom", type = "SingleCellLoomExperiment")
 plot_list <- list()
 plot_list[["detected"]] <- scater::plotColData(
 	object = sce,
@@ -306,15 +316,15 @@ plot_list[["subsets_MT_percent"]] <- scater::plotColData(
 	x = "sum"
 )
 cowplot::plot_grid(plotlist = plot_list, nrow = 1)
+rm(list = ls())
 ```
-
-> TODO: check for existing wrapper (ideally the same as above)
 
 ### Further Preprocessing
 
 #### Separate Preprocessing Steps
 
 ```{r}
+sce <- import('outputs/sce_after_qc_filter.loom', format = "loom", type = "SingleCellLoomExperiment")
 sce <- scuttle::logNormCounts(x = sce)
 sce
 ```
