@@ -243,11 +243,18 @@ cowplot::plot_grid(plotlist = plot_list, nrow = 1)
 rm(list = ls())
 ```
 
-> TODO: check for existing wrapper (ideally the same as above)
+Notes:
 
-> Note (same as above): In contrast to `Seurat`, `scater` can only plot one QC metric at a time. Here, we use `cowplot` to combine them into a single figure.
+- In contrast to the 'violin plot' use case above, where users can give a list of column names that the wrapper can simply loop over, this 'scatter plot' use case requires two features per plot - one of the y-axis and one for the x-axis - which immediately complicates the idea of producing multiple plots for multiple combinations of features on the X-Y axes.
+- Again, taking inspiration from the [Seurat Visualize](https://usegalaxy.eu/?tool_id=toolshed.g2.bx.psu.edu%2Frepos%2Fiuc%2Fseurat_plot%2Fseurat_plot%2F5.4.0%2Bgalaxy2&version=latest), the tool should only allow users to specify one feature for the x-axis and one feature for the y-axis, forcing them to call `scater::plotColData()` once per combination of features on the X-Y axes.
+- The code demonstrated above uses `cowplot::plot_grid()` to combine multiple plots into a single figure only for the purpose of producing an image to paste in the GTN tutorial.
+  In a Galaxy workflow, the tool should produce one image per call to `scater::plotColData()` and not attempt to combine them into a single figure.
+{: .comment}
+
 
 #### Filter Out Low Quality Cells
+
+Having visualised the quality control metrics, we can now filter out low-quality cells based on thresholds for the number of detected genes and the percentage of mitochondrial reads.
 
 ```{r}
 library(LoomExperiment)
@@ -257,7 +264,9 @@ sce <- sce[, keep_cells]
 sce
 ```
 
-> TODO: check for existing wrapper
+Notes:
+
+- Not every user will want to apply the same types of filters. Typically there are three metrics (total UMI, number of genes detected, mitochondrial content). For each metrics, users might choose to apply a lower cutoff and a higher cutoff. The Galaxy tool should offer the flexibility to filter on any of those six metrics. Take inspiration from the equivalent Seurat tool that already exists.
 
 #### Re-Visualise QC Metrics
 
