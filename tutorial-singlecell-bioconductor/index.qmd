@@ -184,7 +184,8 @@ library(LoomExperiment)
 sce <- import('outputs/sce_after_qc.loom', format = "loom", type = "SingleCellLoomExperiment")
 write.table(
 	as.data.frame(colData(sce)), file = "outputs/sce_coldata.tsv", sep = "\t", 
-    quote = FALSE, row.names = FALSE)
+    quote = FALSE, row.names = FALSE
+)
 rm(list = ls())
 ```
 
@@ -323,22 +324,42 @@ rm(list = ls())
 
 ### Further Preprocessing
 
-#### Separate Preprocessing Steps
+#### Log-normalisation
+
+Having filtered droplets that do not pass our chosen quality control filters, the next step in a standard single-cell RNA-sequencing analysis workflow is normalisation.
+
+In Bioconductor, the simple log-normalisation method is implemented in the function `logNormCounts()` of the package [scuttle](https://bioconductor.org/packages/scuttle/).
 
 ```{r}
 library(LoomExperiment)
 library(scuttle)
 sce <- import('outputs/sce_after_qc_filter.loom', format = "loom", type = "SingleCellLoomExperiment")
 sce <- scuttle::logNormCounts(x = sce)
+dimnames(sce@assays@data$counts) <- list(NULL, NULL)
+dimnames(sce@assays@data$logcounts) <- list(NULL, NULL)
 if (!file.exists("outputs/sce_after_lognorm.loom")) {
 	export(object = sce, con = "outputs/sce_after_lognorm.loom", format = "loom")
 }
 ```
 
-> TODO: check for existing wrapper (ideally the same as above)
+#### Model gene variance
+
+We can then model gene variance using the matrix normalised of normalised counts using the `modelGeneVar()` function of the [scran](https://bioconductor.org/packages/scran/) package.
 
 ```{r}
-allf <- scran::modelGeneVar(x = sce)
+library(LoomExperiment)
+library(scuttle)
+sce <- import('outputs/sce_after_lognorm.loom', format = "loom", type = "SingleCellLoomExperiment")
+allf <- scran::modelGeneVar(x = sce, assay.type = "logcounts")
+allf_df <- as.data.frame(allf)
+allf_df <- data.frame(gene = rownames(allf_df), allf_df, row.names = NULL, check.names = FALSE)
+write.table(
+	allf_df, file = "outputs/scuttle_model_gene_var.tsv", sep = "\t",
+    quote = FALSE, row.names = FALSE, col.names = TRUE
+)
+```
+
+```{r}
 hvgs <- scran::getTopHVGs(allf, n = 2000)
 ```
 
