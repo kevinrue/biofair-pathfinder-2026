@@ -6,6 +6,12 @@ suppressPackageStartupMessages({
 	library(LoomExperiment)
 })
 
+# Note
+# '--samples'
+# This argument requires a directory in which the triplet of files is stored (matrix.mtx, barcodes.tsv, features.tsv).
+# Meanwhile, the Galaxy tool takes the three separate filepaths as input.
+# Before calling this script, the tool wrapper should make a copy of the input files in a directory called 'data/'.
+
 option_list <- list(
 	make_option(
 		c("-s", "--samples"),

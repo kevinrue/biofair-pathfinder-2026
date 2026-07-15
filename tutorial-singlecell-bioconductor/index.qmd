@@ -113,7 +113,7 @@ In the context of a Galaxy workflow, the output would then be saved to a `.txt` 
 ```{r}
 library(LoomExperiment)
 sce <- import('outputs/sce.loom', format = "loom", type = "SingleCellLoomExperiment")
-print(sce)
+capture.output(print(sce), file = "outputs/sce_summary.txt")
 rm(list = ls())
 ```
 
@@ -182,7 +182,9 @@ In the context of a Galaxy workflow, the output would then be saved to a `.txt` 
 ```{r}
 library(LoomExperiment)
 sce <- import('outputs/sce_after_qc.loom', format = "loom", type = "SingleCellLoomExperiment")
-print(colData(sce))
+write.table(
+	as.data.frame(colData(sce)), file = "outputs/sce_coldata.tsv", sep = "\t", 
+    quote = FALSE, row.names = FALSE)
 rm(list = ls())
 ```
 
@@ -324,9 +326,13 @@ rm(list = ls())
 #### Separate Preprocessing Steps
 
 ```{r}
+library(LoomExperiment)
+library(scuttle)
 sce <- import('outputs/sce_after_qc_filter.loom', format = "loom", type = "SingleCellLoomExperiment")
 sce <- scuttle::logNormCounts(x = sce)
-sce
+if (!file.exists("outputs/sce_after_lognorm.loom")) {
+	export(object = sce, con = "outputs/sce_after_lognorm.loom", format = "loom")
+}
 ```
 
 > TODO: check for existing wrapper (ideally the same as above)
