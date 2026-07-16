@@ -6,4 +6,6 @@ This is a Quarto website for the BioFAIR Pathfinder project [Connecting Biocondu
 
 The notebook [Clustering 3K PBMCs with Bioconductor](./tutorial-singlecell-bioconductor/) illustrates a single-cell analysis workflow combining several R packages from the [BioConductor](https://bioconductor.org/) and [CRAN](https://cran.r-project.org/) repositories. It is intended to support discussions around potential updates to existing Galaxy tool wrappers and to help identify cases where new wrappers may be needed.
 
+The notebook [LoomExperiment round-trip error after logNormCounts](./loomexperiment-roundtrip-error/) illustrates a round-trip bug that was identified during the conversion of the [Clustering 3K PBMCs with Bioconductor](./tutorial-singlecell-bioconductor/) notebook into a GTN tutorial and identification of reusable workflow steps.
+
 To learn more about Quarto websites visit <https://quarto.org/docs/websites>.

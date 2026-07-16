@@ -1,0 +1,107 @@
+---
+title: "LoomExperiment round-trip error after logNormCounts"
+author: "Kevin Rue-Albrecht"
+execute:
+  freeze: false  # never re-render during project render
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: right
+---
+
+*Generated: `r format(Sys.time(), "%Y-%m-%d %H:%M:%S")`*
+
+## Context
+
+This notebook illustrates a round-tripping bug related to `r BiocStyle::Biocpkg('LoomExperiment')` and `r BiocStyle::Biocpkg('scuttle')` packages.
+
+It aims to facilitate a discussion on responsibility to determine where the fix should be applied.
+
+## Libraries
+
+```{r}
+#| message: false
+#| warning: false
+library(LoomExperiment)
+library(Matrix)
+library(scuttle)
+```
+
+## Simulate data
+
+Simulate a sparse count matrix (100 features x 10 barcodes).
+
+Note: the error does not occur for a regular matrix.
+
+```{r}
+set.seed(1)
+simulated_counts <- rsparsematrix(
+    nrow = 100, ncol = 10, density = 1,
+    rand.x = function(n) rpois(n, lambda = 5)
+)
+```
+
+Create 
+
+```{r}
+sce <- SingleCellExperiment(
+    assays = list(counts = simulated_counts)
+)
+scle <- as(sce, "SingleCellLoomExperiment")
+rownames(scle) <- paste0("feature", seq(nrow(scle)))
+scle
+```
+
+## Saving and reloading the original object works
+
+```{r}
+if (!dir.exists("outputs/")) {
+    dir.create("outputs")
+}
+if (!file.exists("outputs/scle.loom")) {
+    export(scle, "outputs/scle.loom", format = "loom")
+}
+```
+
+```{r}
+import("outputs/scle.loom", format = "loom")
+```
+
+## Apply scuttle::logNormCounts
+
+```{r}
+scle_lognorm <- scuttle::logNormCounts(scle)
+scle_lognorm
+```
+
+## The new object can be saved but not reloaded
+
+```{r}
+if (!file.exists("outputs/scle_lognorm.loom")) {
+    export(scle_lognorm, "outputs/scle_lognorm.loom", format = "loom")
+}
+```
+
+```{r}
+tryCatch(
+    import("outputs/scle_lognorm.loom", format = "loom"),
+    error = function(e) conditionMessage(e)
+)
+```
+
+## Temporary workaround
+
+The code chunk below illustrates the "set dimnames of individual assays to `NULL`" workaround that got me around the issue in the [Clustering 3K PBMCs with Bioconductor](../tutorial-singlecell-bioconductor/) notebook.
+
+```{r}
+library(LoomExperiment)
+library(scuttle)
+sce <- import('outputs/scle.loom', format = "loom", type = "SingleCellLoomExperiment")
+sce <- scuttle::logNormCounts(x = sce)
+dimnames(sce@assays@data$counts) <- list(NULL, NULL)
+dimnames(sce@assays@data$logcounts) <- list(NULL, NULL)
+if (!file.exists("outputs/sce_after_lognorm.loom")) {
+	export(object = sce, con = "outputs/sce_after_lognorm.loom", format = "loom")
+}
+```
