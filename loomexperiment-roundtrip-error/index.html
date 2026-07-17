@@ -4557,7 +4557,7 @@ vertical-align: -.125em;
 
 </header>
 
-<p><em>Generated: 2026-07-17 09:56:50</em></p>
+<p><em>Generated: 2026-07-17 11:15:21</em></p>
 <section id="context" class="level2">
 <h2 class="anchored" data-anchor-id="context">Context</h2>
 <p>This notebook illustrates a round-tripping bug related to <em><a href="https://bioconductor.org/packages/3.22/LoomExperiment">LoomExperiment</a></em> and <em><a href="https://bioconductor.org/packages/3.22/scuttle">scuttle</a></em> packages.</p>
@@ -4714,6 +4714,7 @@ colGraphs(0): NULL</code></pre>
 <p>When export() writes that asymmetric dimnames pair, it writes only the “2” entry to disk.</p>
 <p>During re-import(), the reader apparently doesn’t handle a partial dimnames group gracefully—it still tries to open both “1” and “2”, and fails when “1” doesn’t exist.</p>
 </blockquote>
+<p>Obviously, this needs to be manually confirmed and properly debugged by a human, but it gives a plausible explanation with a successful workaround.</p>
 
 
 </section>
