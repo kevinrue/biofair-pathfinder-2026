@@ -103,7 +103,26 @@ sce <- import('outputs/scle.loom', format = "loom", type = "SingleCellLoomExperi
 sce <- scuttle::logNormCounts(x = sce)
 dimnames(sce@assays@data$counts) <- list(NULL, NULL)
 dimnames(sce@assays@data$logcounts) <- list(NULL, NULL)
-if (!file.exists("outputs/sce_after_lognorm.loom")) {
-	export(object = sce, con = "outputs/sce_after_lognorm.loom", format = "loom")
+if (!file.exists("outputs/scle_lognorm_patched.loom")) {
+	export(sce, "outputs/scle_lognorm_patched.loom", format = "loom")
 }
+import("outputs/scle_lognorm_patched.loom", format = "loom")
 ```
+
+# Discussion
+
+Quoting from Claude Code:
+
+> `import()` doesn't eagerly load the assay matrix — it wraps the on-disk HDF5 dataset in a lazy `DelayedArray`.
+> Loom files store matrices transposed (cells × genes on disk vs. genes × cells in R), so somewhere inside `import()` it calls `t(...)` on that delayed array to flip it back.
+>
+> To dispatch the S4 method for `t()`, R has to evaluate the argument first — which forces an actual read from the HDF5 file.
+> That read fails with `HDF5. Dataset. Can't open object`, HDF5's error for "you asked me to open a dataset/group that doesn't exist." So the crash isn't in your code logic — it's `import()` trying to open something inside the file that isn't there.
+>
+> Every earlier loom file has symmetric (both NULL) dimnames on the assay matrix, so on import there's nothing to open.
+>
+> However, after scuttle::logNormCounts() runs, the resulting logcounts/counts assay matrices end up with dimnames set on only one side (length 32738 = genes), while the other side remains NULL.
+>
+> When export() writes that asymmetric dimnames pair, it writes only the "2" entry to disk.
+>
+> During re-import(), the reader apparently doesn't handle a partial dimnames group gracefully—it still tries to open both "1" and "2", and fails when "1" doesn't exist.
