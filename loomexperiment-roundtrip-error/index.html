@@ -4527,6 +4527,7 @@ vertical-align: -.125em;
   <li><a href="#apply-scuttlelognormcounts" id="toc-apply-scuttlelognormcounts" class="nav-link" data-scroll-target="#apply-scuttlelognormcounts">Apply scuttle::logNormCounts</a></li>
   <li><a href="#the-new-object-can-be-saved-but-not-reloaded" id="toc-the-new-object-can-be-saved-but-not-reloaded" class="nav-link" data-scroll-target="#the-new-object-can-be-saved-but-not-reloaded">The new object can be saved but not reloaded</a></li>
   <li><a href="#temporary-workaround" id="toc-temporary-workaround" class="nav-link" data-scroll-target="#temporary-workaround">Temporary workaround</a></li>
+  <li><a href="#discussion" id="toc-discussion" class="nav-link" data-scroll-target="#discussion">Discussion</a></li>
   </ul>
 </nav>
     </div>
@@ -4556,7 +4557,7 @@ vertical-align: -.125em;
 
 </header>
 
-<p><em>Generated: 2026-07-16 14:23:11</em></p>
+<p><em>Generated: 2026-07-17 09:56:50</em></p>
 <section id="context" class="level2">
 <h2 class="anchored" data-anchor-id="context">Context</h2>
 <p>This notebook illustrates a round-tripping bug related to <em><a href="https://bioconductor.org/packages/3.22/LoomExperiment">LoomExperiment</a></em> and <em><a href="https://bioconductor.org/packages/3.22/scuttle">scuttle</a></em> packages.</p>
@@ -4573,7 +4574,7 @@ vertical-align: -.125em;
 <section id="simulate-data" class="level2">
 <h2 class="anchored" data-anchor-id="simulate-data">Simulate data</h2>
 <p>Simulate a sparse count matrix (100 features x 10 barcodes).</p>
-<p>Note: the error does not occur for a regular matrix.</p>
+<p>Note: The error does not occur for a regular matrix.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>simulated_counts <span class="ot">&lt;-</span> <span class="fu">rsparsematrix</span>(</span>
@@ -4581,7 +4582,8 @@ vertical-align: -.125em;
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">rand.x =</span> <span class="cf">function</span>(n) <span class="fu">rpois</span>(n, <span class="at">lambda =</span> <span class="dv">5</span>)</span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Create</p>
+<p>Create a <code>SingleCellLoomExperiment</code> from that count matrix.</p>
+<p>Note: Reproducing the bug does not require populating other slots (e.g., <code>rowData</code>, <code>colData</code>).</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>sce <span class="ot">&lt;-</span> <span class="fu">SingleCellExperiment</span>(</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">assays =</span> <span class="fu">list</span>(<span class="at">counts =</span> simulated_counts)</span>
@@ -4682,10 +4684,36 @@ colGraphs(0): NULL</code></pre>
 <span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>sce <span class="ot">&lt;-</span> scuttle<span class="sc">::</span><span class="fu">logNormCounts</span>(<span class="at">x =</span> sce)</span>
 <span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="fu">dimnames</span>(sce<span class="sc">@</span>assays<span class="sc">@</span>data<span class="sc">$</span>counts) <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="cn">NULL</span>, <span class="cn">NULL</span>)</span>
 <span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="fu">dimnames</span>(sce<span class="sc">@</span>assays<span class="sc">@</span>data<span class="sc">$</span>logcounts) <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="cn">NULL</span>, <span class="cn">NULL</span>)</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">file.exists</span>(<span class="st">&quot;outputs/sce_after_lognorm.loom&quot;</span>)) {</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">export</span>(<span class="at">object =</span> sce, <span class="at">con =</span> <span class="st">&quot;outputs/sce_after_lognorm.loom&quot;</span>, <span class="at">format =</span> <span class="st">&quot;loom&quot;</span>)</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">file.exists</span>(<span class="st">&quot;outputs/scle_lognorm_patched.loom&quot;</span>)) {</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">export</span>(sce, <span class="st">&quot;outputs/scle_lognorm_patched.loom&quot;</span>, <span class="at">format =</span> <span class="st">&quot;loom&quot;</span>)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="fu">import</span>(<span class="st">&quot;outputs/scle_lognorm_patched.loom&quot;</span>, <span class="at">format =</span> <span class="st">&quot;loom&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>class: LoomExperiment 
+dim: 100 10 
+metadata(4): CreatedWith LOOM_SPEC_VERSION LoomExperiment-class
+  MatrixName
+assays(2): counts logcounts
+rownames(100): feature1 feature2 ... feature99 feature100
+rowData names(0):
+colnames: NULL
+colData names(1): sizeFactor
+rowGraphs(0): NULL
+colGraphs(0): NULL</code></pre>
 </div>
+</div>
+</section>
+<section id="discussion" class="level1">
+<h1>Discussion</h1>
+<p>Quoting from Claude Code:</p>
+<blockquote class="blockquote">
+<p><code>import()</code> doesn’t eagerly load the assay matrix — it wraps the on-disk HDF5 dataset in a lazy <code>DelayedArray</code>. Loom files store matrices transposed (cells × genes on disk vs. genes × cells in R), so somewhere inside <code>import()</code> it calls <code>t(...)</code> on that delayed array to flip it back.</p>
+<p>To dispatch the S4 method for <code>t()</code>, R has to evaluate the argument first — which forces an actual read from the HDF5 file. That read fails with <code>HDF5. Dataset. Can&#39;t open object</code>, HDF5’s error for “you asked me to open a dataset/group that doesn’t exist.” So the crash isn’t in your code logic — it’s <code>import()</code> trying to open something inside the file that isn’t there.</p>
+<p>Every earlier loom file has symmetric (both NULL) dimnames on the assay matrix, so on import there’s nothing to open.</p>
+<p>However, after scuttle::logNormCounts() runs, the resulting logcounts/counts assay matrices end up with dimnames set on only one side (length 32738 = genes), while the other side remains NULL.</p>
+<p>When export() writes that asymmetric dimnames pair, it writes only the “2” entry to disk.</p>
+<p>During re-import(), the reader apparently doesn’t handle a partial dimnames group gracefully—it still tries to open both “1” and “2”, and fails when “1” doesn’t exist.</p>
+</blockquote>
 
 
 </section>
