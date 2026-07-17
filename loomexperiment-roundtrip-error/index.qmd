@@ -32,7 +32,7 @@ library(scuttle)
 
 Simulate a sparse count matrix (100 features x 10 barcodes).
 
-Note: the error does not occur for a regular matrix.
+Note: The error does not occur for a regular matrix.
 
 ```{r}
 set.seed(1)
@@ -42,7 +42,9 @@ simulated_counts <- rsparsematrix(
 )
 ```
 
-Create 
+Create a `SingleCellLoomExperiment` from that count matrix.
+
+Note: Reproducing the bug does not require populating other slots (e.g., `rowData`, `colData`).
 
 ```{r}
 sce <- SingleCellExperiment(
