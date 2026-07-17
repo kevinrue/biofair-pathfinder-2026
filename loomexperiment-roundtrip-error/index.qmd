@@ -126,3 +126,5 @@ Quoting from Claude Code:
 > When export() writes that asymmetric dimnames pair, it writes only the "2" entry to disk.
 >
 > During re-import(), the reader apparently doesn't handle a partial dimnames group gracefully—it still tries to open both "1" and "2", and fails when "1" doesn't exist.
+
+Obviously, this needs to be manually confirmed and properly debugged by a human, but it gives a plausible explanation with a successful workaround.
