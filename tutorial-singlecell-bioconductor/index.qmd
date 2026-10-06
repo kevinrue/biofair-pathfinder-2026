@@ -21,12 +21,11 @@ This tutorial demonstrates a single-cell analysis workflow using Bioconductor pa
 ```{r}
 #| message: false
 #| warning: false
-library(bluster)
 library(cowplot)
 library(DropletUtils)
 library(LoomExperiment)
+library(scrapper)
 library(scater)
-library(scran)
 library(scuttle)
 ```
 
@@ -328,13 +327,12 @@ rm(list = ls())
 
 Having filtered droplets that do not pass our chosen quality control filters, the next step in a standard single-cell RNA-sequencing analysis workflow is normalisation.
 
-In Bioconductor, the simple log-normalisation method is implemented in the function `logNormCounts()` of the package [scuttle](https://bioconductor.org/packages/scuttle/).
+In Bioconductor, the simple log-normalisation method is implemented in the function `normalizeRnaCounts.se()` of the [scrapper](https://bioconductor.org/packages/scrapper/) package.
 
 ```{r}
 library(LoomExperiment)
-library(scuttle)
 sce <- import('outputs/sce_after_qc_filter.loom', format = "loom", type = "SingleCellLoomExperiment")
-sce <- scuttle::logNormCounts(x = sce)
+sce <- scrapper::normalizeRnaCounts.se(x = sce)
 dimnames(sce@assays@data$counts) <- list(NULL, NULL)
 dimnames(sce@assays@data$logcounts) <- list(NULL, NULL)
 if (!file.exists("outputs/sce_after_lognorm.loom")) {
@@ -344,23 +342,22 @@ if (!file.exists("outputs/sce_after_lognorm.loom")) {
 
 #### Model gene variance
 
-We can then model gene variance using the matrix normalised of normalised counts using the `modelGeneVar()` function of the [scran](https://bioconductor.org/packages/scran/) package.
+We can then model gene variance using the matrix normalised of normalised counts using the `modelGeneVariances()` function of the [scrapper](https://bioconductor.org/packages/scrapper/) package.
 
 ```{r}
 library(LoomExperiment)
-library(scuttle)
 sce <- import('outputs/sce_after_lognorm.loom', format = "loom", type = "SingleCellLoomExperiment")
-allf <- scran::modelGeneVar(x = sce, assay.type = "logcounts")
-allf_df <- as.data.frame(allf)
+allf <- scrapper::modelGeneVariances(x = logcounts(sce))
+allf_df <- as.data.frame(allf$statistics)
 allf_df <- data.frame(gene = rownames(allf_df), allf_df, row.names = NULL, check.names = FALSE)
 write.table(
-	allf_df, file = "outputs/scuttle_model_gene_var.tsv", sep = "\t",
+	allf_df, file = "outputs/scrapper_model_gene_var.tsv", sep = "\t",
     quote = FALSE, row.names = FALSE, col.names = TRUE
 )
 ```
 
 ```{r}
-hvgs <- scran::getTopHVGs(allf, n = 2000)
+hvgs <- scrapper::chooseHighlyVariableGenes(allf$statistics$residuals, top = 2000)
 ```
 
 > TODO: check for existing Galaxy tool wrapper.
@@ -377,8 +374,8 @@ message("No direct equivalent to Seurat ScaleData")
 > TODO: check when this might have an impact on the rest of the tutorial
 
 ```{r}
-plot(allf$mean, allf$total)
-curve(metadata(allf)$trend(x), add=TRUE, col="dodgerblue")
+plot(allf$statistics$means, allf$statistics$variances)
+curve(approxfun(allf$statistics$means, allf$statistics$fitted)(x), add=TRUE, col="dodgerblue")
 ```
 
 > TODO: check for existing Galaxy tool wrapper.
@@ -391,10 +388,10 @@ curve(metadata(allf)$trend(x), add=TRUE, col="dodgerblue")
 #### Perform the PCA
 
 ```{r}
-sce <- scater::runPCA(
+sce <- scrapper::runPca.se(
 	x = sce,
-	ncomponents = 50,
-	subset_row = hvgs
+	features = hvgs,
+	number = 50
 )
 sce
 ```
@@ -470,7 +467,7 @@ message("No direct equivalent to Seurat::DimHeatmap")
 #### Make an Elbow Plot
 
 ```{r}
-percent.var <- attr(reducedDim(sce), "percentVar")
+percent.var <- 100 * metadata(sce)$PCA$variance.explained / metadata(sce)$PCA$total.variance
 plot(percent.var, log="y", xlab="PC", ylab="Variance explained (%)")
 ```
 
@@ -479,34 +476,29 @@ plot(percent.var, log="y", xlab="PC", ylab="Variance explained (%)")
 ## Cluster the Cells
 
 ```{r}
-colData(sce)[["cluster"]] <- scran::clusterCells(
+sce <- scrapper::clusterGraph.se(
 	x = sce,
-	use.dimred = "PCA",
-	BLUSPARAM = bluster::SNNGraphParam(
-		k = 10,
-		type="rank",
-		cluster.fun = "louvain",
-		cluster.args = list(
-			resolution = 0.7
-		)
-	)
+	num.neighbors = 10,
+	method = "multilevel",
+	resolution = 0.7,
+	reddim.type = "PCA",
+	output.name = "cluster"
 )
 sce
 ```
 
 > TODO: check for existing Galaxy tool wrapper.
 
-> Note: `BLUSPARAM` thrown in there to illustrate how this might be configured, but a lot customisation is possible.
+> Note: `num.neighbors`, `method`, and `resolution` are thrown in there to illustrate how this might be configured, but a lot customisation is possible.
 
 ### Run non-linear dimensional reduction (UMAP/tSNE)
 
 #### Perform Dimensional Reduction with UMAP
 
 ```{r}
-sce <- scater::runUMAP(
+sce <- scrapper::runUmap.se(
 	x = sce,
-	dimred = "PCA",
-	pca = 20
+	reddim.type = "PCA"
 )
 sce
 ```
@@ -564,21 +556,19 @@ plotExpression(
 
 ### Find Positive Markers for Every Cluster Compared to the Rest
 
-#### Use `findMarkers` to Compare All Clusters
+#### Use `scoreMarkers` to Compare All Clusters
 
 ```{r}
-find_markers_results <- findMarkers(
+find_markers_results <- scrapper::scoreMarkers.se(
 	x = sce,
-	groups = colData(sce)[["cluster"]],
-	test.type = "wilcox",
-	pval.type = "any"
+	groups = colData(sce)[["cluster"]]
 )
 find_markers_results
 ```
 
 > TODO: check for existing Galaxy tool wrapper.
 
-> Note: This function produces a Bioconductor `SimpleList` of tables (one per cluster) which would need to be saved in an RDS file unlike the combined table produced by Seurat where a column specifies the cluster for which each gene is a marker of. Furthermore, in the present case, there is no easy way to combine that list of tables into a single table because they have different sets of column headers (each cluster isn't tested against itself).
+> Note: This function produces a Bioconductor `List` of tables (one per cluster) which would need to be saved in an RDS file unlike the combined table produced by Seurat where a column specifies the cluster for which each gene is a marker of. Furthermore, in the present case, there is no easy way to combine that list of tables into a single table because they have different sets of column headers (each cluster isn't tested against itself).
 
 could be converted to a base R `list` to safely write to RDS without triggering packages when re-importing in subsequent steps.
 
