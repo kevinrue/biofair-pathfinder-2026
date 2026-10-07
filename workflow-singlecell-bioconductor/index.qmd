@@ -1,0 +1,74 @@
+---
+title: "Clustering 3K PBMCs with(in) Bioconductor"
+author: "Kevin Rue-Albrecht"
+execute:
+  freeze: true  # true: never re-render during project render
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: right
+---
+
+*Generated: `r format(Sys.time(), "%Y-%m-%d %H:%M:%S")`*
+
+## Context
+
+This tutorial demonstrates a single-cell analysis workflow using Bioconductor packages, entirely relying on R object without considering the export of data in a way that is interoperable and reusable in other software ecosystems.
+
+## Libraries
+
+```{r}
+#| message: false
+#| warning: false
+library(cowplot)
+library(DropletUtils)
+library(scrapper)
+library(scater)
+library(scuttle)
+```
+
+## Data
+
+### Data download
+
+To create a parallel tutorial to the existing tutorial [Clustering 3K PBMCs with Seurat](https://training.galaxyproject.org/training-material/topics/single-cell/tutorials/scrna-seurat-pbmc3k/tutorial.html), input data files were downloaded from these Zenodo links:
+
+```
+https://zenodo.org/record/3581213/files/genes.tsv
+https://zenodo.org/record/3581213/files/barcodes.tsv
+https://zenodo.org/record/3581213/files/matrix.mtx
+```
+
+```{r}
+if (!dir.exists("data")) {
+	dir.create("data")
+}
+if (!file.exists("data/genes.tsv")) {
+	download.file("https://zenodo.org/record/3581213/files/genes.tsv", "data/genes.tsv")
+}
+if (!file.exists("data/barcodes.tsv")) {
+	download.file("https://zenodo.org/record/3581213/files/barcodes.tsv", "data/barcodes.tsv")
+}
+if (!file.exists("data/matrix.mtx")) {
+	download.file("https://zenodo.org/record/3581213/files/matrix.mtx", "data/matrix.mtx")
+}
+```
+
+### Create a SingleCellExperiment Object
+
+The common data structure adopted by Bioconductor packages to store the matrix as well as gene and cell annotations is called `SingleCellExperiment`.
+
+We can import the matrix and annotations of genes and cells into an `SingleCellExperiment` object using the function `read10xCounts()` of the package [DropletUtils](https://bioconductor.org/packages/DropletUtils/).
+
+We set the `samples=` argument to the directory that contains the three 10x files.
+Changing `row.names=` from the default `"id"` to `"symbol"` ensures that human-readable gene symbols are used instead of the database-friendlier Ensembl gene identifiers.
+Either way, both Ensembl gene identifiers and gene symbols will be stored in the `rowData()` component of the `SingleCellExperiment` and available at all times.
+
+```{r}
+library(DropletUtils)
+sce <- DropletUtils::read10xCounts(
+	samples = "data/",
+	row.names = "symbol"
+)
+```

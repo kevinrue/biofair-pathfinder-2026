@@ -2,7 +2,7 @@
 title: "Clustering 3K PBMCs with Bioconductor"
 author: "Kevin Rue-Albrecht"
 execute:
-  freeze: false  # never re-render during project render
+  freeze: false  # false: Recompute previously generated computational output
 format:
   html:
     embed-resources: true
